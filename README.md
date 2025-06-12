@@ -2,7 +2,7 @@
 ## Un separador de períodos dinámico para tradingview, utilizando Pinescript.
 > 🦾 El siguiente script fue vibe-codeado utilizando la IA.
 >
-##### El separador imprime líneas verticales sobre velas específicas, consideradas las aperturas para segmentos predeterminados. Fue ideado con las Ordenes de Magnitud de Elder en mente, donde se perfila la actividad del precio en un conjunto determinado de velas.
+##### El separador imprime líneas verticales sobre velas específicas, consideradas las aperturas para segmentos predeterminados. Está basado sobre las Ordenes de Magnitud de Elder, donde se perfila la actividad del precio en un conjunto determinado de velas.
 -----
 ## 📊 Funciones del separador.
 ¿Por qué este separador? Fue creado con la intención de hacer backtesting. Perfilar al eje tiempo en el mercado es una tarea que debería de hacerse manualmente, si lo que se desea es aprender 🧠. Una vez aprendido y entendido, se puede aplicar la misma lógica por ejemplo para crear una herramienta que automatice la tarea. En este caso, lo preparé porque tenía que trasladar mis markups de la estación de backtesting a un nuevo gráfico en tradingview. Haciendo esto me encontré con que este delineado en particular es muy rutinario y apto para scriptearse. Utilizar un script hace más eficiencia de mi tiempo que buscar y manualmente hacer los dibujos, en especial porque...
