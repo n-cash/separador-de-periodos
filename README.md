@@ -1,4 +1,4 @@
-# Separador-de-periodos
+# Separador de periodos
 ## Un separador de períodos dinámico para tradingview, utilizando Pinescript.
 > 🦾 El siguiente script fue vibe-codeado utilizando la IA.
 >
@@ -23,3 +23,6 @@ Como se dijo, imprime los períodos. Lo hace de manera dinámica, en donde separ
   - Con un botón de toggle, para poder ver y dejar de ver esta Órden de Magnitud y sus aperturas mientras estemos en temporalidades intradiarias.
 - **A medida que incrementamos la escala, las aperturas de menor timeframe dejan de aparecer. Sin embargo al adentrarse en timeframes inferiores, se puede optar por mantener visibilidad sobre las aperturas de mayor escala.**
 -----
+## ✅ Tareas pendientes...
+- [ ] En los mercados que cierran (no cripto) algunos meses imprimen su línea vertical al segundo día hábil del mes en lugar del primero. Si bien es prácticamente imperceptible, queda pendiente averiguar por qué es esto así y cómo corregir la lógica de impresión. Esto sólamente afecta al chart diario.
+- [ ] Vinculado al mismo problema, el chart mensual también presenta fallas en las impresiones. Pendiente filtrar el Mensual para que aparezcan sólo las aperturas anuales desde esta escala.
