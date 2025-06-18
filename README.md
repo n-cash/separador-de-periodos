@@ -24,5 +24,6 @@ Como se dijo, imprime los períodos. Lo hace de manera dinámica, en donde separ
 - **A medida que incrementamos la escala, las aperturas de menor timeframe dejan de aparecer. Sin embargo al adentrarse en timeframes inferiores, se puede optar por mantener visibilidad sobre las aperturas de mayor escala.**
 -----
 ## ✅ Tareas pendientes...
+> El script ya está en una versión altamente funcional y apta para ser compartida con el mundo. Estoy contentísimo con su funcionamiento, y a esta altura el repositorio está publicado porque funciona para lo que se creó. Dicho esto, hay ciertos detalles que, a pesar del tiempo dedicado, han sido persistentes en su oposición a resolverse. He decidido volcar estos detalles en un apartado final...
 - [ ] En los mercados que cierran (no cripto) algunos meses imprimen su línea vertical al segundo día hábil del mes en lugar del primero. Si bien es prácticamente imperceptible, queda pendiente averiguar por qué es esto así y cómo corregir la lógica de impresión. Esto sólamente afecta al chart diario.
 - [ ] Vinculado al mismo problema, el chart mensual también presenta fallas en las impresiones. Pendiente filtrar el Mensual para que aparezcan sólo las aperturas anuales desde esta escala.
