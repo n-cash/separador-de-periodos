@@ -1,127 +1,109 @@
 //@version=6
 // -----------------------------------------------------------------------------
-// Nombre: Separador Diario y Semanal Automático v2.0
-// Descripción: Este indicador dibuja líneas verticales en la apertura de cada
-// día y mes para marcar divisiones temporales. Permite personalizar el estilo
-// de las líneas para los lunes (inicio de semana) y trimestres (inicio de
-// período contractual) de forma diferente al resto de los días/meses.
-// Incorpora un toggle para los domingos y ajusta la visibilidad de las
-// líneas según la temporalidad del gráfico. Todas las opciones son
-// configurables a través del panel de configuración.
+// Nombre: Separador de Períodos Avanzado (v6 - Solución por Timestamp)
+// Descripción: Este indicador utiliza una lógica de dibujo basada en timestamps
+// para colocar los separadores mensuales. Esto soluciona definitivamente el
+// problema de desplazamiento en mercados que cierran los fines de semana (Forex)
+// al dibujar la línea en su coordenada de tiempo exacta.
 // -----------------------------------------------------------------------------
-indicator('Separador Diario y Semanal Automático v2.0', shorttitle = 'Separador D/S v2', overlay = true, max_lines_count = 500)
+indicator('Separador de Períodos Avanzado', shorttitle = 'Separador Pro', overlay = true, max_lines_count = 500)
 
-// Función interna para convertir la opción de estilo (texto) al formato de estilo de línea de Pine Script.
-// Se utiliza una estructura 'switch' para mayor claridad y robustez.
+// --- GRUPO DE CONFIGURACIÓN GENERAL Y TOGGLES ---
+group_general = '1. Configuración General'
+gmt_zona_horaria = input.string('GMT-4', 'Zona Horaria para Medianoche (ej. GMT-4, UTC)', group = group_general)
+show_domingos = input.bool(false, 'Mostrar Líneas de Domingo', group = group_general, inline = 'dom')
+show_mensual_en_intradia = input.bool(false, 'Mostrar Sep. Mensual/Trimestral en Intradía', group = group_general, inline = 'mq_intradia')
+show_solo_trimestres = input.bool(false, 'Mostrar solo Líneas Trimestrales', group = group_general, inline = 'mq_intradia')
+
+// --- GRUPO DE CONFIGURACIÓN DE LÍNEAS DIARIAS ---
+group_diario = '2. Estilo Líneas Diarias'
+// Lunes
+color_lunes = input.color(color.new(#ffffff, 80), 'Lunes', group = group_diario, inline = 'lunes')
+grosor_lunes = input.int(1, '', minval = 1, maxval = 5, group = group_diario, inline = 'lunes')
+estilo_lunes_str = input.string('Solid', '', options = ['Solid', 'Dashed', 'Dotted'], group = group_diario, inline = 'lunes')
+// Otros Días
+color_otros = input.color(color.new(#000000, 0), 'Otros Días', group = group_diario, inline = 'otros')
+grosor_otros = input.int(1, '', minval = 1, maxval = 5, group = group_diario, inline = 'otros')
+estilo_otros_str = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], group = group_diario, inline = 'lunes')
+
+// --- GRUPO DE CONFIGURACIÓN DE LÍNEAS MENSUALES Y TRIMESTRALES ---
+group_mensual = '3. Estilo Líneas Mensuales y Trimestrales'
+// Mensual
+color_mensual = input.color(color.new(color.blue, 70), 'Mensual', group = group_mensual, inline = 'mensual')
+grosor_mensual = input.int(1, '', minval = 1, maxval = 5, group = group_mensual, inline = 'mensual')
+estilo_mensual_str = input.string('Dotted', '', options = ['Solid', 'Dashed', 'Dotted'], group = group_mensual, inline = 'mensual')
+// Trimestral
+color_trimestral = input.color(color.new(color.blue, 70), 'Trimestral', group = group_mensual, inline = 'trimestral')
+grosor_trimestral = input.int(1, '', minval = 1, maxval = 5, group = group_mensual, inline = 'trimestral')
+estilo_trimestral_str = input.string('Solid', '', options = ['Solid', 'Dashed', 'Dotted'], group = group_mensual, inline = 'trimestral')
+
+
+// --- LÓGICA DE CÁLCULO Y DIBUJO ---
+
+// Función para convertir la opción de estilo (string) a un valor de estilo de línea
 f_obtener_estilo(estilo_string) =>
     switch estilo_string
         'Solid' => line.style_solid
         'Dashed' => line.style_dashed
-        => line.style_dotted // Valor por defecto si no es ninguno de los anteriores
+        => line.style_dotted
 
-// --- GRUPO DE CONFIGURACIÓN DE LÍNEAS DE LUNES ---
-group_lunes = '1. Configuración de Línea de Lunes (Intradiario)'
-color_lunes = input.color(color.new(color.white, 80), 'Color de Línea', group = group_lunes, inline = 'lunes')
-grosor_lunes = input.int(1, 'Grosor', minval = 1, maxval = 5, group = group_lunes, inline = 'lunes')
-estilo_lunes_str = input.string('Solid', 'Estilo', options = ['Solid', 'Dashed', 'Dotted'], group = group_lunes, inline = 'lunes')
+// Detección de cambios de período.
+bool es_nuevo_dia_intradia = dayofmonth(time, gmt_zona_horaria) != dayofmonth(time[1], gmt_zona_horaria)
+// LÓGICA ROBUSTA PARA NUEVO MES: Se detecta cuando el día del mes se resetea (ej. 31 -> 1). Inmune a fines de semana.
+bool es_nuevo_mes_diario = dayofmonth < dayofmonth[1]
+bool es_nuevo_mes_intradia = month(time, gmt_zona_horaria) != month(time[1], gmt_zona_horaria)
 
-// --- GRUPO DE CONFIGURACIÓN DE LÍNEAS PARA OTROS DÍAS (MARTES-VIERNES) ---
-group_otros_dias = '2. Configuración de Líneas (Martes-Viernes Intradiario)'
-color_otros_dias = input.color(color.new(color.black, 0), 'Color de Línea', group = group_otros_dias, inline = 'otros_dias')
-grosor_otros_dias = input.int(1, 'Grosor', minval = 1, maxval = 5, group = group_otros_dias, inline = 'otros_dias')
-estilo_otros_dias_str = input.string('Dotted', 'Estilo', options = ['Solid', 'Dashed', 'Dotted'], group = group_otros_dias, inline = 'otros_dias')
 
-// --- GRUPO DE CONFIGURACIÓN DE LÍNEAS PARA DOMINGOS ---
-group_domingos = '3. Configuración de Línea de Domingo (Intradiario)'
-mostrar_domingos = input.bool(true, 'Mostrar Domingos', group = group_domingos, inline = 'domingos_toggle')
-color_domingos = input.color(color.new(color.purple, 70), 'Color de Línea', group = group_domingos, inline = 'domingos_toggle')
-grosor_domingos = input.int(1, 'Grosor', minval = 1, maxval = 5, group = group_domingos, inline = 'domingos_toggle')
-estilo_domingos_str = input.string('Dotted', 'Estilo', options = ['Solid', 'Dashed', 'Dotted'], group = group_domingos, inline = 'domingos_toggle')
+// Variables booleanas para detectar el timeframe actual.
+bool tf_is_intraday = timeframe.isintraday
+bool tf_is_daily_or_weekly = timeframe.isdaily or timeframe.isweekly
+bool tf_is_monthly = timeframe.ismonthly
+bool tf_is_below_4h = timeframe.in_seconds() < 3600 * 4
 
-// --- GRUPO DE CONFIGURACIÓN DE LÍNEAS PARA MESES TRIMESTRALES (DIC, MAR, JUN, SEP) ---
-group_trimestres = '4. Configuración de Línea de Mes Trimestral (Diario en adelante)'
-color_trimestres = input.color(color.new(color.blue, 70), 'Color de Línea', group = group_trimestres, inline = 'trimestres')
-grosor_trimestres = input.int(1, 'Grosor', minval = 1, maxval = 5, group = group_trimestres, inline = 'trimestres')
-estilo_trimestres_str = input.string('Solid', 'Estilo', options = ['Solid', 'Dashed', 'Dotted'], group = group_trimestres, inline = 'trimestres')
 
-// --- GRUPO DE CONFIGURACIÓN DE LÍNEAS PARA OTROS MESES ---
-group_otros_meses = '5. Configuración de Líneas (Resto de Meses Diario en adelante)'
-color_otros_meses = input.color(color.new(color.blue, 70), 'Color de Línea', group = group_otros_meses, inline = 'otros_meses')
-grosor_otros_meses = input.int(1, 'Grosor', minval = 1, maxval = 5, group = group_otros_meses, inline = 'otros_meses')
-estilo_otros_meses_str = input.string('Dashed', 'Estilo', options = ['Solid', 'Dashed', 'Dotted'], group = group_otros_meses, inline = 'otros_meses')
+// --- DIBUJO CONDICIONAL BASADO EN TIMEFRAME ---
 
-// --- TOGGLE GENERAL PARA LÍNEAS DIARIAS/MENSUALES EN INTRADIARIO ---
-group_visibilidad = '6. Visibilidad General'
-mostrar_lineas_superiores_en_intradiario = input.bool(true, 'Mostrar líneas mensuales/trimestrales en intradiario', group = group_visibilidad)
+// --- Lógica para Timeframes Intradiarios (SIN CAMBIOS EN LÍNEAS DIARIAS) ---
+if tf_is_intraday
+    // Dibujo de separadores diarios usando la lógica de GMT
+    if es_nuevo_dia_intradia
+        dia_semana = dayofweek(time, gmt_zona_horaria)
+        es_dia_laboral_intermedio = dia_semana >= dayofweek.tuesday and dia_semana <= dayofweek.saturday
 
-// --- LÓGICA DE DIBUJO ---
+        if dia_semana == dayofweek.monday
+            line.new(bar_index, low, bar_index, high, extend = extend.both, color = color_lunes, style = f_obtener_estilo(estilo_lunes_str), width = grosor_lunes)
+        if es_dia_laboral_intermedio and tf_is_below_4h
+            line.new(bar_index, low, bar_index, high, extend = extend.both, color = color_otros, style = f_obtener_estilo(estilo_otros_str), width = grosor_otros)
+        if dia_semana == dayofweek.sunday and show_domingos
+            line.new(bar_index, low, bar_index, high, extend = extend.both, color = color_otros, style = f_obtener_estilo(estilo_otros_str), width = grosor_otros)
 
-// Detectamos el cambio de día y mes.
-bool es_nuevo_dia = bool(ta.change(dayofmonth))
-bool es_nuevo_mes = bool(ta.change(month))
+    // Dibujo opcional de separadores mayores en intradía usando TIMESTAMPS
+    if show_mensual_en_intradia and es_nuevo_mes_intradia
+        // Calcular el timestamp exacto del inicio del mes en la zona horaria del usuario
+        int ts = timestamp(gmt_zona_horaria, year(time, gmt_zona_horaria), month(time, gmt_zona_horaria), 1, 0, 0)
 
-// Obtenemos la temporalidad actual del gráfico en minutos (corregido de timeframe.in_minutes a timeframe.in_seconds / 60)
-int current_resolution_in_minutes = timeframe.in_seconds() / 60
+        mes = month(time, gmt_zona_horaria)
+        bool es_trimestre = mes == 3 or mes == 6 or mes == 9 or mes == 12
+        bool es_mes_intermedio = mes == 1 or mes == 2 or mes == 4 or mes == 5 or mes == 7 or mes == 8 or mes == 10 or mes == 11
 
-// --- DIBUJO DE LÍNEAS DIARIAS (INTRADIARIO) ---
-if es_nuevo_dia
-    // Lógica para temporalidades < 240 minutos (4 horas)
-    if current_resolution_in_minutes < 240 // Para 1h, 30m, 15m, etc.
-        bool es_lunes = dayofweek == dayofweek.monday
-        bool es_domingo = dayofweek == dayofweek.sunday
+        if es_trimestre
+            line.new(ts, low, ts, high, xloc.bar_time, extend.both, color_trimestral, f_obtener_estilo(estilo_trimestral_str), grosor_trimestral)
+        else if es_mes_intermedio and not show_solo_trimestres
+            line.new(ts, low, ts, high, xloc.bar_time, extend.both, color_mensual, f_obtener_estilo(estilo_mensual_str), grosor_mensual)
 
-        // Inicializamos variables con 'na' para asegurar que siempre tengan un valor.
-        color line_color_diario = na
-        int line_width_diario = na
-        string line_style_diario_str = na
 
-        if es_lunes
-            line_color_diario := color_lunes
-            line_width_diario := grosor_lunes
-            line_style_diario_str := estilo_lunes_str
-            line_style_diario_str
-        else if es_domingo and mostrar_domingos
-            line_color_diario := color_domingos
-            line_width_diario := grosor_domingos
-            line_style_diario_str := estilo_domingos_str
-            line_style_diario_str
-        else if not es_domingo // Martes a Viernes
-            line_color_diario := color_otros_dias
-            line_width_diario := grosor_otros_dias
-            line_style_diario_str := estilo_otros_dias_str
-            line_style_diario_str
-            // Si no se cumple ninguna de las condiciones anteriores (por ejemplo, es domingo y mostrar_domingos es false),
-            // las variables permanecerán como 'na', lo que se manejará en la siguiente verificación.
+// --- Lógica para Timeframes Diario, Semanal y Mensual (USANDO TIMESTAMPS) ---
+if tf_is_daily_or_weekly or tf_is_monthly
+    if es_nuevo_mes_diario
+        // Calcular el timestamp exacto del inicio del mes. Usamos la TZ del símbolo para alinear con las velas del gráfico.
+        int ts = timestamp(syminfo.timezone, year(time), month(time), 1, 0, 0)
 
-        if na(line_color_diario) == false // Solo dibujar si se ha asignado un color válido
-            line.new(bar_index, low, bar_index, high, extend = extend.both, color = line_color_diario, style = f_obtener_estilo(line_style_diario_str), width = line_width_diario)
+        mes_actual = month(time)
+        bool es_trimestre = mes_actual == 3 or mes_actual == 6 or mes_actual == 9 or mes_actual == 12
+        bool es_mes_intermedio = mes_actual == 1 or mes_actual == 2 or mes_actual == 4 or mes_actual == 5 or mes_actual == 7 or mes_actual == 8 or mes_actual == 10 or mes_actual == 11
 
-    // Lógica para temporalidades >= 240 minutos (4 horas) y < resolución diaria (1 día)
-    else if current_resolution_in_minutes >= 240 and current_resolution_in_minutes < 1440 // Para 4h, 8h, 12h
-        bool es_lunes = dayofweek == dayofweek.monday
-        if es_lunes
-            line.new(bar_index, low, bar_index, high, extend = extend.both, color = color_lunes, style = f_obtener_estilo(estilo_lunes_str), width = grosor_lunes) // Se usan los mismos parámetros de lunes style  = f_obtener_estilo(estilo_lunes_str), width  = grosor_lunes)
-
-// --- DIBUJO DE LÍNEAS MENSUALES/TRIMESTRALES (DIARIO EN ADELANTE) ---
-if es_nuevo_mes and (current_resolution_in_minutes >= 1440 or mostrar_lineas_superiores_en_intradiario) // Para diario, semanal, mensual o si el toggle está activado en intradiario
-    // Corrección: Usar valores numéricos para comparar con 'month'
-    bool es_trimestre = month == 12 or month == 3 or month == 6 or month == 9
-
-    // Inicializamos variables con 'na' para asegurar que siempre tengan un valor.
-    color line_color_mensual = na
-    int line_width_mensual = na
-    string line_style_mensual_str = na
-
-    if es_trimestre
-        line_color_mensual := color_trimestres
-        line_width_mensual := grosor_trimestres
-        line_style_mensual_str := estilo_trimestres_str
-        line_style_mensual_str
-    else
-        line_color_mensual := color_otros_meses
-        line_width_mensual := grosor_otros_meses
-        line_style_mensual_str := estilo_otros_meses_str
-        line_style_mensual_str
-
-    if na(line_color_mensual) == false // Solo dibujar si se ha asignado un color válido
-        line.new(bar_index, low, bar_index, high, extend = extend.both, color = line_color_mensual, style = f_obtener_estilo(line_style_mensual_str), width = line_width_mensual)
+        if es_trimestre
+            line.new(ts, low, ts, high, xloc.bar_time, extend.both, color_trimestral, f_obtener_estilo(estilo_trimestral_str), grosor_trimestral)
+        else if es_mes_intermedio
+            if not show_solo_trimestres and not tf_is_monthly
+                line.new(ts, low, ts, high, xloc.bar_time, extend.both, color_mensual, f_obtener_estilo(estilo_mensual_str), grosor_mensual)
